@@ -2,19 +2,20 @@ import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/openai";
 import {
   buildAnalysisPrompt,
+  buildFullArtifactsPrompt,
   buildProductArtifactsPrompt,
   buildUiUxPrompt,
   buildValidationPrompt,
 } from "@/lib/prompts";
 import {
   analysisSchema,
+  fullArtifactsSchema,
   generationRequestSchema,
   generationResultSchema,
   parseJsonResponse,
-  productArtifactsSchema,
-  uiUxSchema,
-  validationSchema,
 } from "@/lib/schemas";
+
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
@@ -23,57 +24,19 @@ export async function POST(request: Request) {
 
     const analysis = parseJsonResponse(await generateJson(buildAnalysisPrompt(transcript)), analysisSchema);
 
-    const productArtifactsContent = await generateJson(buildProductArtifactsPrompt(JSON.stringify(analysis, null, 2)));
-    const productArtifacts = parseJsonResponse(
-      productArtifactsContent,
-      productArtifactsSchema,
-    );
-
-    const uiUx = parseJsonResponse(
-      await generateJson(
-        buildUiUxPrompt(
-          JSON.stringify(
-            {
-              analysis,
-              prd: productArtifacts.prd,
-              userStories: productArtifacts.userStories,
-              functionalRequirements: productArtifacts.functionalRequirements,
-            },
-            null,
-            2,
-          ),
-        ),
-      ),
-      uiUxSchema,
-    );
-
-    const validation = parseJsonResponse(
-      await generateJson(
-        buildValidationPrompt(
-          JSON.stringify(
-            {
-              analysis,
-              prd: productArtifacts.prd,
-              userStories: productArtifacts.userStories,
-              functionalRequirements: productArtifacts.functionalRequirements,
-              uiUx,
-            },
-            null,
-            2,
-          ),
-        ),
-      ),
-      validationSchema,
+    const fullArtifacts = parseJsonResponse(
+      await generateJson(buildFullArtifactsPrompt(JSON.stringify(analysis, null, 2))),
+      fullArtifactsSchema,
     );
 
     const result = generationResultSchema.parse({
       input: { transcript },
       analysis,
-      prd: productArtifacts.prd,
-      userStories: productArtifacts.userStories,
-      functionalRequirements: productArtifacts.functionalRequirements,
-      uiUx,
-      validation,
+      prd: fullArtifacts.prd,
+      userStories: fullArtifacts.userStories,
+      functionalRequirements: fullArtifacts.functionalRequirements,
+      uiUx: fullArtifacts.uiUx,
+      validation: fullArtifacts.validation,
     });
 
     return NextResponse.json(result);

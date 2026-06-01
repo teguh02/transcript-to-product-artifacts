@@ -210,6 +210,14 @@ export const generationResultSchema = z.object({
   validation: validationSchema,
 });
 
+export const fullArtifactsSchema = z.object({
+  prd: prdSchema,
+  userStories: userStoriesSchema.shape.userStories,
+  functionalRequirements: functionalRequirementsSchema.shape.functionalRequirements,
+  uiUx: uiUxSchema,
+  validation: validationSchema,
+});
+
 export function parseJsonResponse<T>(content: string, schema: z.ZodSchema<T>): T {
   const parsed = JSON.parse(content);
   return schema.parse(parsed);

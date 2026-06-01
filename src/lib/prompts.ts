@@ -87,6 +87,115 @@ Transcript analysis:
 ${analysis}`;
 }
 
+export function buildFullArtifactsPrompt(analysis: string) {
+  return `You are a senior product manager and product designer. Based on the transcript analysis below, generate a complete product artifact package in English. ${JSON_ONLY_RULE}
+
+Every array field that represents text items must contain plain strings only unless the schema below explicitly requires objects.
+
+Return this JSON shape:
+{
+  "prd": {
+    "productOverview": "",
+    "problemStatement": "",
+    "goals": [],
+    "userPersonas": [
+      {
+        "name": "",
+        "role": "",
+        "needs": [],
+        "painPoints": []
+      }
+    ],
+    "userJourney": [
+      {
+        "step": "",
+        "description": ""
+      }
+    ],
+    "features": [
+      {
+        "name": "",
+        "description": ""
+      }
+    ],
+    "functionalRequirements": [],
+    "nonFunctionalRequirements": [],
+    "successMetrics": []
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "role": "",
+      "action": "",
+      "benefit": "",
+      "story": "As a [user], I want [action] so that [benefit]."
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-001",
+      "title": "",
+      "description": "",
+      "priority": "High",
+      "relatedStories": ["US-001"]
+    }
+  ],
+  "uiUx": {
+    "sitemap": [
+      {
+        "name": "",
+        "purpose": "",
+        "children": []
+      }
+    ],
+    "screenList": [
+      {
+        "id": "SCR-001",
+        "name": "",
+        "purpose": "",
+        "primaryUser": "",
+        "keyFeatures": []
+      }
+    ],
+    "userFlow": [
+      {
+        "step": 1,
+        "screen": "",
+        "userAction": "",
+        "systemResponse": ""
+      }
+    ],
+    "wireframes": [
+      {
+        "screenId": "SCR-001",
+        "screenName": "",
+        "goal": "",
+        "layout": "",
+        "primaryAction": "",
+        "sections": [
+          {
+            "name": "",
+            "components": []
+          }
+        ],
+        "notes": []
+      }
+    ]
+  },
+  "validation": {
+    "consistencyScore": 0,
+    "issues": [],
+    "fixSuggestions": []
+  }
+}
+
+Artifacts must be internally consistent.
+Validation issues and suggestions should be concise and useful.
+
+Transcript analysis:
+${analysis}`;
+}
+
 export function buildUiUxPrompt(context: string) {
   return `You are a product designer creating low-fidelity UX artifacts. Generate practical and traceable UI/UX outputs based on the context below. ${JSON_ONLY_RULE}
 
