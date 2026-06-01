@@ -62,10 +62,13 @@ function buildLocalValidation(result: Omit<GenerationResult, "validation">): Val
     fixSuggestions.push("Reduce ambiguity by specifying constraints, feature priorities, and user roles in the source meeting notes.");
   }
 
+  const cappedIssues = issues.slice(0, 3);
+  const cappedFixSuggestions = fixSuggestions.slice(0, 3);
+
   return {
     consistencyScore: Math.max(0, score),
-    issues,
-    fixSuggestions,
+    issues: cappedIssues,
+    fixSuggestions: cappedFixSuggestions,
   };
 }
 
