@@ -85,11 +85,13 @@ Important:
 1. Import the GitHub repository into Netlify
 2. Let Netlify detect `Next.js`
 3. Confirm the build command is `npm run build`
-4. Add the required environment variables
-5. Deploy the site
+4. Use `Node 20` for the build environment
+5. Add the required environment variables
+6. Deploy the site
 
 ### Notes
 
 - The app uses Next.js server routes for `/api/generate` and `/api/transcribe`
 - A successful deployment requires server-side support, not static export only
+- The included `netlify.toml` pins the build to Node 20 LTS for better compatibility
 - If you update environment variables later, trigger a redeploy
