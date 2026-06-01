@@ -55,7 +55,7 @@ function normalizeObjectToText(value: Record<string, unknown>): string {
   return flattened.join(" - ");
 }
 
-const flexibleStringItemSchema = z
+const flexibleStringItemSchema: z.ZodType<string, z.ZodTypeDef, string | Record<string, unknown>> = z
   .union([z.string(), z.record(z.unknown())])
   .transform((value, ctx) => {
     const normalized = typeof value === "string" ? value.trim() : normalizeObjectToText(value);
@@ -211,11 +211,11 @@ export const generationResultSchema = z.object({
 });
 
 export const fullArtifactsSchema = z.object({
+  analysis: analysisSchema,
   prd: prdSchema,
   userStories: userStoriesSchema.shape.userStories,
   functionalRequirements: functionalRequirementsSchema.shape.functionalRequirements,
   uiUx: uiUxSchema,
-  validation: validationSchema,
 });
 
 export function parseJsonResponse<T>(content: string, schema: z.ZodSchema<T>): T {
