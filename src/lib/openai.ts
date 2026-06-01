@@ -1,36 +1,15 @@
 import OpenAI from "openai";
 
 let client: OpenAI | null = null;
-const MIN_TIMEOUT_MS = 10_000;
-const MAX_TIMEOUT_MS = 40_000;
-const DEFAULT_TIMEOUT_MS = 40_000;
-const MIN_COMPLETION_TOKENS = 600;
-const MAX_COMPLETION_TOKENS = 2_200;
-const DEFAULT_COMPLETION_TOKENS = 1_600;
+const OPENAI_TIMEOUT_MS = 40_000;
+const TEXT_MODEL_CANDIDATES = ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"] as const;
+const TRANSCRIPTION_MODEL = "whisper-1";
+const DEFAULT_COMPLETION_TOKENS = 1_200;
+const RETRY_COMPLETION_TOKENS = 900;
+const MAX_MODEL_ATTEMPTS = 2;
 
-function getTextGenerationModel() {
-  return process.env.OPENAI_MODEL || "gpt-5-mini";
-}
-
-function getOpenAITimeoutMs() {
-  const timeout = Number(process.env.OPENAI_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
-
-  if (!Number.isFinite(timeout)) {
-    return DEFAULT_TIMEOUT_MS;
-  }
-
-  return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, timeout));
-}
-
-function getMaxCompletionTokens() {
-  const maxTokens = Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || DEFAULT_COMPLETION_TOKENS);
-
-  if (!Number.isFinite(maxTokens)) {
-    return DEFAULT_COMPLETION_TOKENS;
-  }
-
-  return Math.min(MAX_COMPLETION_TOKENS, Math.max(MIN_COMPLETION_TOKENS, Math.trunc(maxTokens)));
-}
+type TokenStyle = "max_completion_tokens" | "max_tokens";
+type ResponseFormatMode = "json_object" | "plain_text";
 
 function isRetryableError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -48,6 +27,113 @@ function isRetryableError(error: unknown) {
   );
 }
 
+function isCompatibilityError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    (message.includes("model") && (message.includes("does not exist") || message.includes("not found"))) ||
+    message.includes("unsupported parameter") ||
+    message.includes("not supported with this model") ||
+    message.includes("response_format")
+  );
+}
+
+function buildCompletionRequest({
+  model,
+  prompt,
+  maxTokens,
+  tokenStyle,
+  responseFormatMode,
+}: {
+  model: string;
+  prompt: string;
+  maxTokens: number;
+  tokenStyle: TokenStyle;
+  responseFormatMode: ResponseFormatMode;
+}) {
+  const request: Record<string, unknown> = {
+    model,
+    messages: [
+      {
+        role: "system",
+        content: "You are a precise AI assistant that returns strict JSON responses.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  };
+
+  request[tokenStyle] = maxTokens;
+
+  if (responseFormatMode === "json_object") {
+    request.response_format = { type: "json_object" };
+  }
+
+  return request;
+}
+
+async function callChatCompletionWithFallback(prompt: string) {
+  const openai = getOpenAIClient();
+  const requestVariants: ReadonlyArray<{ tokenStyle: TokenStyle; responseFormatMode: ResponseFormatMode }> = [
+    { tokenStyle: "max_completion_tokens", responseFormatMode: "json_object" },
+    { tokenStyle: "max_tokens", responseFormatMode: "json_object" },
+    { tokenStyle: "max_completion_tokens", responseFormatMode: "plain_text" },
+    { tokenStyle: "max_tokens", responseFormatMode: "plain_text" },
+  ];
+
+  let lastError: unknown;
+
+  for (const model of TEXT_MODEL_CANDIDATES) {
+    for (const requestVariant of requestVariants) {
+      for (let attempt = 1; attempt <= MAX_MODEL_ATTEMPTS; attempt += 1) {
+        const maxTokens = attempt === 1 ? DEFAULT_COMPLETION_TOKENS : RETRY_COMPLETION_TOKENS;
+
+        try {
+          const response = await openai.chat.completions.create(
+            buildCompletionRequest({
+              model,
+              prompt,
+              maxTokens,
+              tokenStyle: requestVariant.tokenStyle,
+              responseFormatMode: requestVariant.responseFormatMode,
+            }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+          );
+
+          const content = response.choices[0]?.message?.content;
+
+          if (!content) {
+            throw new Error("OpenAI returned an empty response.");
+          }
+
+          return content;
+        } catch (error) {
+          lastError = error;
+
+          if (isCompatibilityError(error)) {
+            break;
+          }
+
+          if (isRetryableError(error) && attempt < MAX_MODEL_ATTEMPTS) {
+            continue;
+          }
+
+          break;
+        }
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("OpenAI request failed for all configured model and parameter fallbacks.");
+}
+
 export function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -58,7 +144,7 @@ export function getOpenAIClient() {
   if (!client) {
     client = new OpenAI({
       apiKey,
-      timeout: getOpenAITimeoutMs(),
+      timeout: OPENAI_TIMEOUT_MS,
       maxRetries: 0,
     });
   }
@@ -67,59 +153,16 @@ export function getOpenAIClient() {
 }
 
 export async function generateJson(prompt: string) {
-  const openai = getOpenAIClient();
-  const model = getTextGenerationModel();
-  const maxCompletionTokens = getMaxCompletionTokens();
-
-  const baseRequest = {
-    model,
-    messages: [
-      {
-        role: "system" as const,
-        content: "You are a precise AI assistant that returns strict JSON responses.",
-      },
-      {
-        role: "user" as const,
-        content: prompt,
-      },
-    ],
-    response_format: { type: "json_object" as const },
-  };
-
-  let response;
-
-  try {
-    response = await openai.chat.completions.create({
-      ...baseRequest,
-      max_completion_tokens: maxCompletionTokens,
-    });
-  } catch (error) {
-    if (!isRetryableError(error)) {
-      throw error;
-    }
-
-    response = await openai.chat.completions.create({
-      ...baseRequest,
-      max_completion_tokens: Math.max(MIN_COMPLETION_TOKENS, Math.trunc(maxCompletionTokens * 0.75)),
-    });
-  }
-
-  const content = response.choices[0]?.message?.content;
-
-  if (!content) {
-    throw new Error("OpenAI returned an empty response.");
-  }
-
+  const content = await callChatCompletionWithFallback(prompt);
   return content;
 }
 
 export async function transcribeAudio(file: File) {
   const openai = getOpenAIClient();
-  const model = process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1";
 
   const response = await openai.audio.transcriptions.create({
     file,
-    model,
+    model: TRANSCRIPTION_MODEL,
   });
 
   if (!response.text) {

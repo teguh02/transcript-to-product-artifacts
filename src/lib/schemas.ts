@@ -218,7 +218,69 @@ export const fullArtifactsSchema = z.object({
   uiUx: uiUxSchema,
 });
 
+function findFirstJsonObject(source: string) {
+  const start = source.indexOf("{");
+
+  if (start < 0) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return source.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
 export function parseJsonResponse<T>(content: string, schema: z.ZodSchema<T>): T {
-  const parsed = JSON.parse(content);
+  const normalizedContent = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(normalizedContent);
+  } catch {
+    const extractedJson = findFirstJsonObject(normalizedContent);
+
+    if (!extractedJson) {
+      throw new Error("Could not locate a valid JSON object in the model response.");
+    }
+
+    parsed = JSON.parse(extractedJson);
+  }
+
   return schema.parse(parsed);
 }
