@@ -2,7 +2,7 @@
 
 Generate a PRD, user stories, functional requirements, sitemap, user flow, and structured low-fidelity wireframes from a meeting transcript.
 
-The transcript can come from pasted text, a `.txt` file, or an uploaded audio file transcribed with OpenAI speech-to-text.
+The transcript can come from pasted text, a `.txt` file, or the built-in sample transcript.
 
 ## Stack
 
@@ -43,14 +43,10 @@ npm run dev
 
 ## Notes
 
-- The app uses a staged AI pipeline:
-  - transcript analysis
-  - product artifact generation
-  - UI/UX generation
-  - validation pass
+- The app uses a single-pass AI generation flow to reduce timeout risk in serverless deployment.
 - Wireframes are generated as structured low-fidelity layouts, then rendered in the frontend.
 - Each rendered wireframe can be downloaded as a PNG image.
-- Audio uploads are transcribed first, then inserted into the main transcript editor for review before generation.
+- Quick generation mode trims long transcripts before sending to AI to keep response time stable.
 
 ## Required Environment Variables
 
@@ -78,7 +74,7 @@ Important:
 - use the exact names above
 - do not rename the key to `NEXT_PUBLIC_*`
 - these variables are used by server routes, not client-side code
-- model and request limits are already optimized in server code
+- model and request limits are optimized for quick prototype generation
 
 ### Recommended Netlify Setup
 
@@ -91,7 +87,7 @@ Important:
 
 ### Notes
 
-- The app uses Next.js server routes for `/api/generate` and `/api/transcribe`
+- The app uses Next.js server routes for `/api/generate` (active) and `/api/transcribe` (disabled in prototype mode)
 - A successful deployment requires server-side support, not static export only
 - The included `netlify.toml` pins the build to Node 20 LTS for better compatibility
 - Netlify production is more reliable with a faster text model and a bounded OpenAI timeout

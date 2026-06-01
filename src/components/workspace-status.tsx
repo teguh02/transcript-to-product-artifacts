@@ -2,7 +2,6 @@ import type { GenerationResult } from "@/types/artifacts";
 
 type WorkspaceStatusProps = {
   loading: boolean;
-  transcribing: boolean;
   sourceLabel: string;
   result: GenerationResult | null;
   hasValidTranscript: boolean;
@@ -45,31 +44,26 @@ function StepBadge({ state }: { state: "done" | "active" | "pending" | "failed" 
 
 export function WorkspaceStatus({
   loading,
-  transcribing,
   sourceLabel,
   result,
   hasValidTranscript,
   hasError,
 }: WorkspaceStatusProps) {
-  const statusLabel = transcribing ? "Transcribing" : loading ? "Generating" : "Ready";
-  const statusTone = transcribing
-    ? "border-amber-400/30 bg-amber-400/10 text-amber-100"
-    : loading
-      ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-100"
-      : "border-emerald-400/30 bg-emerald-400/10 text-emerald-100";
+  const statusLabel = loading ? "Generating" : "Ready";
+  const statusTone = loading
+    ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-100"
+    : "border-emerald-400/30 bg-emerald-400/10 text-emerald-100";
 
   const stepItems = [
     {
       title: "Transcript prepared",
       description: "Input transcript is present and meets the minimum validation length.",
-      state: getStepState(hasValidTranscript, !hasValidTranscript && !transcribing),
+      state: getStepState(hasValidTranscript, !hasValidTranscript),
     },
     {
       title: "Source normalized",
-      description: transcribing
-        ? "Audio is being converted into editable transcript text."
-        : `Current source is ${sourceLabel.toLowerCase()}.`,
-      state: getStepState(!transcribing && hasValidTranscript, transcribing),
+      description: `Current source is ${sourceLabel.toLowerCase()}.`,
+      state: getStepState(hasValidTranscript, false),
     },
     {
       title: "Artifact generation",
