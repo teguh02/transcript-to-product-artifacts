@@ -64,6 +64,11 @@ npm run dev
 - `OPENAI_TIMEOUT_MS` optional, defaults to `40000`
 - `OPENAI_MAX_COMPLETION_TOKENS` optional, defaults to `1600`
 
+Server safety behavior:
+
+- Generate route normalizes and caps transcript length before sending to the model to keep generation stable.
+- Timeout and completion token values are bounded server-side for reliability, even if larger values are configured in deployment environment variables.
+
 ## Netlify Deployment
 
 This project includes a `netlify.toml` file for Next.js deployment.

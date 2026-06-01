@@ -10,6 +10,17 @@ import {
 import type { GenerationResult, Validation } from "@/types/artifacts";
 
 export const maxDuration = 60;
+const MAX_PROMPT_TRANSCRIPT_CHARS = 12_000;
+
+function normalizeTranscriptForGeneration(transcript: string) {
+  const normalized = transcript.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= MAX_PROMPT_TRANSCRIPT_CHARS) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, MAX_PROMPT_TRANSCRIPT_CHARS)}…`;
+}
 
 function buildLocalValidation(result: Omit<GenerationResult, "validation">): Validation {
   const issues: string[] = [];
@@ -76,9 +87,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { transcript } = generationRequestSchema.parse(body);
+    const normalizedTranscript = normalizeTranscriptForGeneration(transcript);
 
     const fullArtifacts = parseJsonResponse(
-      await generateJson(buildOneShotArtifactsPrompt(transcript)),
+      await generateJson(buildOneShotArtifactsPrompt(normalizedTranscript)),
       fullArtifactsSchema,
     );
 

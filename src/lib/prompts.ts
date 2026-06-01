@@ -15,9 +15,9 @@ Prefer fewer, higher-quality items over long lists.
 Keep paragraph fields to 1 short paragraph each.
 Do not exceed these limits:
 - actors: 4
-- problems: 5
-- goals: 5
-- featureIdeas: 6
+- problems: 4
+- goals: 4
+- featureIdeas: 5
 - constraints: 4
 - nonFunctionalSignals: 4
 - successSignals: 4
@@ -25,18 +25,18 @@ Do not exceed these limits:
 - openQuestions: 3
 - userPersonas: 3
 - userJourney steps: 5
-- features: 6
-- prd functionalRequirements summary items: 6
+- features: 5
+- prd functionalRequirements summary items: 5
 - nonFunctionalRequirements: 4
 - successMetrics: 4
-- userStories: 6
-- functionalRequirements: 8
+- userStories: 5
+- functionalRequirements: 6
 - sitemap nodes: 6
-- screenList screens: 6
-- userFlow steps: 6
-- wireframes: 4
-- wireframe sections per screen: 4
-- wireframe components per section: 4
+- screenList screens: 5
+- userFlow steps: 5
+- wireframes: 3
+- wireframe sections per screen: 3
+- wireframe components per section: 3
 - wireframe notes per screen: 3
 Every array field that represents text items must contain plain strings only unless the schema below explicitly requires objects.
 Do not include a validation object in the response.
@@ -138,10 +138,10 @@ Return this JSON shape:
           {
             "name": "",
             "components": []
-        }
-      ],
-      "notes": []
-    }
+          }
+        ],
+        "notes": []
+      }
     ]
   }
 }
