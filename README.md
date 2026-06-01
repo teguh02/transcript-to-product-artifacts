@@ -31,8 +31,10 @@ copy .env.example .env.local
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-5.4
+OPENAI_MODEL=gpt-4.1-mini
 OPENAI_TRANSCRIPTION_MODEL=whisper-1
+OPENAI_TIMEOUT_MS=25000
+OPENAI_MAX_COMPLETION_TOKENS=2500
 ```
 
 4. Start the development server:
@@ -57,8 +59,10 @@ npm run dev
 ## Required Environment Variables
 
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` optional, defaults to `gpt-5.4`
+- `OPENAI_MODEL` optional, defaults to `gpt-4.1-mini`
 - `OPENAI_TRANSCRIPTION_MODEL` optional, defaults to `whisper-1`
+- `OPENAI_TIMEOUT_MS` optional, defaults to `25000`
+- `OPENAI_MAX_COMPLETION_TOKENS` optional, defaults to `2500`
 
 ## Netlify Deployment
 
@@ -70,8 +74,10 @@ Add these exact variable names in `Site configuration` -> `Environment variables
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-5.4
+OPENAI_MODEL=gpt-4.1-mini
 OPENAI_TRANSCRIPTION_MODEL=whisper-1
+OPENAI_TIMEOUT_MS=25000
+OPENAI_MAX_COMPLETION_TOKENS=2500
 ```
 
 Important:
@@ -79,6 +85,7 @@ Important:
 - use the exact names above
 - do not rename them to `NEXT_PUBLIC_*`
 - these variables are used by server routes, not client-side code
+- for Netlify reliability, prefer a fast model such as `gpt-4.1-mini`
 
 ### Recommended Netlify Setup
 
@@ -94,4 +101,5 @@ Important:
 - The app uses Next.js server routes for `/api/generate` and `/api/transcribe`
 - A successful deployment requires server-side support, not static export only
 - The included `netlify.toml` pins the build to Node 20 LTS for better compatibility
+- Netlify production is more reliable with a faster text model and a bounded OpenAI timeout
 - If you update environment variables later, trigger a redeploy

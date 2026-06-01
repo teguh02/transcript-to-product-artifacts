@@ -2,6 +2,18 @@ import OpenAI from "openai";
 
 let client: OpenAI | null = null;
 
+function getTextGenerationModel() {
+  return process.env.OPENAI_MODEL || "gpt-4.1-mini";
+}
+
+function getOpenAITimeoutMs() {
+  return Number(process.env.OPENAI_TIMEOUT_MS || 25000);
+}
+
+function getMaxCompletionTokens() {
+  return Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || 2500);
+}
+
 export function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -10,7 +22,11 @@ export function getOpenAIClient() {
   }
 
   if (!client) {
-    client = new OpenAI({ apiKey });
+    client = new OpenAI({
+      apiKey,
+      timeout: getOpenAITimeoutMs(),
+      maxRetries: 0,
+    });
   }
 
   return client;
@@ -18,7 +34,7 @@ export function getOpenAIClient() {
 
 export async function generateJson(prompt: string) {
   const openai = getOpenAIClient();
-  const model = process.env.OPENAI_MODEL || "gpt-5.4";
+  const model = getTextGenerationModel();
 
   const response = await openai.chat.completions.create({
     model,
@@ -32,6 +48,8 @@ export async function generateJson(prompt: string) {
         content: prompt,
       },
     ],
+    temperature: 0.2,
+    max_completion_tokens: getMaxCompletionTokens(),
     response_format: { type: "json_object" },
   });
 
