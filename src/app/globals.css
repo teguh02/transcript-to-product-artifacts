@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.surface {
+  @apply rounded-2xl border border-white/10 bg-white/5 shadow-[0_20px_80px_rgba(15,23,42,0.35)];
+}
+
+.section-title {
+  @apply text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300;
+}
