@@ -59,3 +59,37 @@ npm run dev
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` optional, defaults to `gpt-5.4`
 - `OPENAI_TRANSCRIPTION_MODEL` optional, defaults to `whisper-1`
+
+## Netlify Deployment
+
+This project includes a `netlify.toml` file for Next.js deployment.
+
+### Environment Variables in Netlify
+
+Add these exact variable names in `Site configuration` -> `Environment variables`:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-5.4
+OPENAI_TRANSCRIPTION_MODEL=whisper-1
+```
+
+Important:
+
+- use the exact names above
+- do not rename them to `NEXT_PUBLIC_*`
+- these variables are used by server routes, not client-side code
+
+### Recommended Netlify Setup
+
+1. Import the GitHub repository into Netlify
+2. Let Netlify detect `Next.js`
+3. Confirm the build command is `npm run build`
+4. Add the required environment variables
+5. Deploy the site
+
+### Notes
+
+- The app uses Next.js server routes for `/api/generate` and `/api/transcribe`
+- A successful deployment requires server-side support, not static export only
+- If you update environment variables later, trigger a redeploy
