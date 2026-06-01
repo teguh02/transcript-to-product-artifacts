@@ -7,7 +7,7 @@ import {
   fullArtifactsSchema,
   generationRequestSchema,
   generationResultSchema,
-  parseJsonResponse,
+  parseRawJsonResponse,
 } from "@/lib/schemas";
 import type { GenerationResult, Validation } from "@/types/artifacts";
 
@@ -134,6 +134,190 @@ function buildLocalValidation(result: Omit<GenerationResult, "validation">): Val
   };
 }
 
+function toText(value: unknown, fallback = "") {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (value && typeof value === "object") {
+    const objectValue = value as Record<string, unknown>;
+
+    for (const key of ["name", "title", "summary", "description", "label", "value", "text", "content"] as const) {
+      const candidate = objectValue[key];
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+  }
+
+  return fallback;
+}
+
+function toTextArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return typeof value === "string" && value.trim() ? [value.trim()] : [];
+  }
+
+  return value.map((item) => toText(item)).filter(Boolean);
+}
+
+function toRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function toArray(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeFullArtifactsPayload(raw: unknown) {
+  const root = toRecord(raw);
+  const analysis = toRecord(root.analysis);
+  const prd = toRecord(root.prd);
+  const uiUx = toRecord(root.uiUx);
+
+  return {
+    analysis: {
+      productName: toText(analysis.productName),
+      summary: toText(analysis.summary),
+      actors: toTextArray(analysis.actors),
+      problems: toTextArray(analysis.problems),
+      goals: toTextArray(analysis.goals),
+      featureIdeas: toTextArray(analysis.featureIdeas),
+      constraints: toTextArray(analysis.constraints),
+      nonFunctionalSignals: toTextArray(analysis.nonFunctionalSignals),
+      successSignals: toTextArray(analysis.successSignals),
+      assumptions: toTextArray(analysis.assumptions),
+      openQuestions: toTextArray(analysis.openQuestions),
+    },
+    prd: {
+      productOverview: toText(prd.productOverview),
+      problemStatement: toText(prd.problemStatement),
+      goals: toTextArray(prd.goals),
+      userPersonas: toArray(prd.userPersonas).map((item) => {
+        const persona = toRecord(item);
+        return {
+          name: toText(persona.name),
+          role: toText(persona.role),
+          needs: toTextArray(persona.needs),
+          painPoints: toTextArray(persona.painPoints),
+        };
+      }),
+      userJourney: toArray(prd.userJourney).map((item) => {
+        const step = toRecord(item);
+        return {
+          step: toText(step.step),
+          description: toText(step.description),
+        };
+      }),
+      features: toArray(prd.features).map((item) => {
+        const feature = toRecord(item);
+        return {
+          name: toText(feature.name),
+          description: toText(feature.description),
+        };
+      }),
+      functionalRequirements: toTextArray(prd.functionalRequirements),
+      nonFunctionalRequirements: toTextArray(prd.nonFunctionalRequirements),
+      successMetrics: toTextArray(prd.successMetrics),
+    },
+    userStories: toArray(root.userStories).map((item, index) => {
+      const story = toRecord(item);
+      const id = toText(story.id) || `US-${String(index + 1).padStart(3, "0")}`;
+      const role = toText(story.role);
+      const action = toText(story.action);
+      const benefit = toText(story.benefit);
+
+      return {
+        id,
+        role,
+        action,
+        benefit,
+        story: toText(story.story) || `As a ${role || "user"}, I want ${action || "to complete a task"} so that ${benefit || "I can achieve the desired outcome"}.`,
+      };
+    }),
+    functionalRequirements: toArray(root.functionalRequirements).map((item, index) => {
+      const requirement = toRecord(item);
+      const priority = toText(requirement.priority, "Medium");
+
+      return {
+        id: toText(requirement.id) || `FR-${String(index + 1).padStart(3, "0")}`,
+        title: toText(requirement.title),
+        description: toText(requirement.description),
+        priority: priority === "High" || priority === "Low" ? priority : "Medium",
+        relatedStories: toTextArray(requirement.relatedStories),
+      };
+    }),
+    uiUx: {
+      sitemap: toArray(uiUx.sitemap).map((item) => {
+        const node = toRecord(item);
+        return {
+          name: toText(node.name),
+          purpose: toText(node.purpose),
+          children: toTextArray(node.children),
+        };
+      }),
+      screenList: toArray(uiUx.screenList).map((item, index) => {
+        const screen = toRecord(item);
+        return {
+          id: toText(screen.id) || `SCR-${String(index + 1).padStart(3, "0")}`,
+          name: toText(screen.name),
+          purpose: toText(screen.purpose),
+          primaryUser: toText(screen.primaryUser),
+          keyFeatures: toTextArray(screen.keyFeatures),
+        };
+      }),
+      userFlow: toArray(uiUx.userFlow).map((item, index) => {
+        const step = toRecord(item);
+        const parsedStep = Number(step.step);
+        return {
+          step: Number.isFinite(parsedStep) ? parsedStep : index + 1,
+          screen: toText(step.screen),
+          userAction: toText(step.userAction),
+          systemResponse: toText(step.systemResponse),
+        };
+      }),
+      wireframes: toArray(uiUx.wireframes).map((item, index) => {
+        const wireframe = toRecord(item);
+        return {
+          screenId: toText(wireframe.screenId) || `SCR-${String(index + 1).padStart(3, "0")}`,
+          screenName: toText(wireframe.screenName),
+          goal: toText(wireframe.goal),
+          layout: toText(wireframe.layout),
+          primaryAction: toText(wireframe.primaryAction),
+          sections: toArray(wireframe.sections).map((sectionItem) => {
+            const section = toRecord(sectionItem);
+            return {
+              name: toText(section.name),
+              components: toTextArray(section.components),
+            };
+          }),
+          notes: toTextArray(wireframe.notes),
+        };
+      }),
+    },
+  };
+}
+
+function summarizeArtifactsPayload(payload: ReturnType<typeof normalizeFullArtifactsPayload>) {
+  return {
+    analysisActors: payload.analysis.actors.length,
+    analysisProblems: payload.analysis.problems.length,
+    analysisGoals: payload.analysis.goals.length,
+    personas: payload.prd.userPersonas.length,
+    features: payload.prd.features.length,
+    userStories: payload.userStories.length,
+    functionalRequirements: payload.functionalRequirements.length,
+    sitemapNodes: payload.uiUx.sitemap.length,
+    screens: payload.uiUx.screenList.length,
+    userFlowSteps: payload.uiUx.userFlow.length,
+    wireframes: payload.uiUx.wireframes.length,
+  };
+}
+
 export async function POST(request: Request) {
   const requestStartedAt = Date.now();
 
@@ -167,8 +351,30 @@ export async function POST(request: Request) {
     });
 
     const openAiStartedAt = Date.now();
-    const fullArtifacts = parseJsonResponse(await generateJson(prompt), fullArtifactsSchema);
+    const rawModelResponse = parseRawJsonResponse(await generateJson(prompt));
     const openAiDurationMs = Date.now() - openAiStartedAt;
+
+    console.info("[generate] raw model response parsed", {
+      openAiDurationMs,
+      rootKeys: Object.keys(toRecord(rawModelResponse)),
+    });
+
+    const normalizeArtifactsStartedAt = Date.now();
+    const normalizedArtifacts = normalizeFullArtifactsPayload(rawModelResponse);
+    const normalizeArtifactsDurationMs = Date.now() - normalizeArtifactsStartedAt;
+
+    console.info("[generate] artifacts normalized", {
+      normalizeArtifactsDurationMs,
+      summary: summarizeArtifactsPayload(normalizedArtifacts),
+    });
+
+    const schemaParseStartedAt = Date.now();
+    const fullArtifacts = fullArtifactsSchema.parse(normalizedArtifacts);
+    const schemaParseDurationMs = Date.now() - schemaParseStartedAt;
+
+    console.info("[generate] artifacts schema validated", {
+      schemaParseDurationMs,
+    });
 
     const withoutValidation: Omit<GenerationResult, "validation"> = {
       input: { transcript },
@@ -181,6 +387,12 @@ export async function POST(request: Request) {
 
     const validation = buildLocalValidation(withoutValidation);
 
+    console.info("[generate] local validation computed", {
+      consistencyScore: validation.consistencyScore,
+      issues: validation.issues.length,
+      fixSuggestions: validation.fixSuggestions.length,
+    });
+
     const result = generationResultSchema.parse({
       ...withoutValidation,
       validation,
@@ -189,6 +401,7 @@ export async function POST(request: Request) {
     console.info("[generate] request completed", {
       totalDurationMs: Date.now() - requestStartedAt,
       openAiDurationMs,
+      normalizedArtifactsSummary: summarizeArtifactsPayload(normalizedArtifacts),
     });
 
     return NextResponse.json(result);

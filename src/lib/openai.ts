@@ -1,43 +1,17 @@
 import OpenAI from "openai";
+import { parseRawJsonResponse } from "@/lib/schemas";
 
 let client: OpenAI | null = null;
-const OPENAI_TIMEOUT_MS = 12_000;
-const TEXT_MODEL_CANDIDATES = ["gpt-5-mini", "gpt-4.1-mini"] as const;
+const OPENAI_TIMEOUT_MS = 60000;
+const DEFAULT_TEXT_MODEL = "gpt-5.5";
 const TRANSCRIPTION_MODEL = "whisper-1";
-const DEFAULT_COMPLETION_TOKENS = 700;
+const DEFAULT_COMPLETION_TOKENS = 8000;
 
-type TokenStyle = "max_tokens";
-type ResponseFormatMode = "json_object";
+type TokenStyle = "max_completion_tokens";
+type ResponseFormatMode = "json_object" | "none";
 
-function isRetryableError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const message = error.message.toLowerCase();
-
-  return (
-    message.includes("timeout") ||
-    message.includes("timed out") ||
-    message.includes("rate limit") ||
-    message.includes("overloaded") ||
-    message.includes("temporarily unavailable")
-  );
-}
-
-function isCompatibilityError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const message = error.message.toLowerCase();
-
-  return (
-    (message.includes("model") && (message.includes("does not exist") || message.includes("not found"))) ||
-    message.includes("unsupported parameter") ||
-    message.includes("not supported with this model") ||
-    message.includes("response_format")
-  );
+function getResponsePreview(content: string) {
+  return content.replace(/\s+/g, " ").slice(0, 220);
 }
 
 function buildCompletionRequest({
@@ -76,41 +50,67 @@ function buildCompletionRequest({
   return request;
 }
 
-async function callChatCompletionWithFallback(prompt: string) {
+async function callChatCompletion(prompt: string) {
   const openai = getOpenAIClient();
-  let lastError: unknown;
+  const model = DEFAULT_TEXT_MODEL;
+  const responseFormatMode = "json_object";
 
-  for (const model of TEXT_MODEL_CANDIDATES) {
-    try {
-      const response = await openai.chat.completions.create(
-        buildCompletionRequest({
-          model,
-          prompt,
-          maxTokens: DEFAULT_COMPLETION_TOKENS,
-          tokenStyle: "max_tokens",
-          responseFormatMode: "json_object",
-        }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
-      );
+  console.info("[openai] starting text generation", {
+    model,
+    promptChars: prompt.length,
+    timeoutMs: OPENAI_TIMEOUT_MS,
+    completionTokens: DEFAULT_COMPLETION_TOKENS,
+  });
 
-      const content = response.choices[0]?.message?.content;
+  const attemptStartedAt = Date.now();
 
-      if (!content) {
-        throw new Error("OpenAI returned an empty response.");
-      }
+  try {
+    console.info("[openai] attempting completion", {
+      model,
+      responseFormatMode,
+    });
 
-      return content;
-    } catch (error) {
-      lastError = error;
+    const response = await openai.chat.completions.create(
+      buildCompletionRequest({
+        model,
+        prompt,
+        maxTokens: DEFAULT_COMPLETION_TOKENS,
+        tokenStyle: "max_completion_tokens",
+        responseFormatMode,
+      }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+    );
 
-      if (!isCompatibilityError(error) && !isRetryableError(error)) {
-        break;
-      }
+    const content = response.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("OpenAI returned an empty response.");
     }
-  }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("OpenAI request failed for all configured model and parameter fallbacks.");
+    console.info("[openai] completion received", {
+      model,
+      responseFormatMode,
+      durationMs: Date.now() - attemptStartedAt,
+      preview: getResponsePreview(content),
+    });
+
+    parseRawJsonResponse(content);
+
+    console.info("[openai] completion accepted", {
+      model,
+      responseFormatMode,
+    });
+
+    return content;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[openai] completion attempt failed", {
+      model,
+      responseFormatMode,
+      durationMs: Date.now() - attemptStartedAt,
+      error: message,
+    });
+    throw error;
+  }
 }
 
 export function getOpenAIClient() {
@@ -132,12 +132,20 @@ export function getOpenAIClient() {
 }
 
 export async function generateJson(prompt: string) {
-  const content = await callChatCompletionWithFallback(prompt);
+  const content = await callChatCompletion(prompt);
   return content;
 }
 
 export async function transcribeAudio(file: File) {
   const openai = getOpenAIClient();
+  const startedAt = Date.now();
+
+  console.info("[openai] starting transcription", {
+    fileName: file.name,
+    fileType: file.type,
+    fileSize: file.size,
+    model: TRANSCRIPTION_MODEL,
+  });
 
   const response = await openai.audio.transcriptions.create({
     file,
@@ -147,6 +155,11 @@ export async function transcribeAudio(file: File) {
   if (!response.text) {
     throw new Error("OpenAI returned an empty transcription.");
   }
+
+  console.info("[openai] transcription completed", {
+    durationMs: Date.now() - startedAt,
+    transcriptChars: response.text.length,
+  });
 
   return response.text;
 }

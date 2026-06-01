@@ -270,12 +270,11 @@ function findFirstJsonObject(source: string) {
   return null;
 }
 
-export function parseJsonResponse<T>(content: string, schema: z.ZodSchema<T>): T {
+export function parseRawJsonResponse(content: string): unknown {
   const normalizedContent = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  let parsed: unknown;
 
   try {
-    parsed = JSON.parse(normalizedContent);
+    return JSON.parse(normalizedContent);
   } catch {
     const extractedJson = findFirstJsonObject(normalizedContent);
 
@@ -283,8 +282,10 @@ export function parseJsonResponse<T>(content: string, schema: z.ZodSchema<T>): T
       throw new Error("Could not locate a valid JSON object in the model response.");
     }
 
-    parsed = JSON.parse(extractedJson);
+    return JSON.parse(extractedJson);
   }
+}
 
-  return schema.parse(parsed);
+export function parseJsonResponse<T>(content: string, schema: z.ZodSchema<T>): T {
+  return schema.parse(parseRawJsonResponse(content));
 }
