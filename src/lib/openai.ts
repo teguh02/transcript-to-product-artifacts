@@ -3,15 +3,15 @@ import OpenAI from "openai";
 let client: OpenAI | null = null;
 
 function getTextGenerationModel() {
-  return process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  return process.env.OPENAI_MODEL || "gpt-5-mini";
 }
 
 function getOpenAITimeoutMs() {
-  return Number(process.env.OPENAI_TIMEOUT_MS || 25000);
+  return Number(process.env.OPENAI_TIMEOUT_MS || 40000);
 }
 
 function getMaxCompletionTokens() {
-  return Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || 2500);
+  return Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || 1600);
 }
 
 export function getOpenAIClient() {
@@ -48,7 +48,6 @@ export async function generateJson(prompt: string) {
         content: prompt,
       },
     ],
-    temperature: 0.2,
     max_completion_tokens: getMaxCompletionTokens(),
     response_format: { type: "json_object" },
   });
