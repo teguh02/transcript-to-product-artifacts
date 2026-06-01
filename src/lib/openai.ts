@@ -1,15 +1,13 @@
 import OpenAI from "openai";
 
 let client: OpenAI | null = null;
-const OPENAI_TIMEOUT_MS = 40_000;
-const TEXT_MODEL_CANDIDATES = ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"] as const;
+const OPENAI_TIMEOUT_MS = 12_000;
+const TEXT_MODEL_CANDIDATES = ["gpt-5-mini", "gpt-4.1-mini"] as const;
 const TRANSCRIPTION_MODEL = "whisper-1";
-const DEFAULT_COMPLETION_TOKENS = 1_200;
-const RETRY_COMPLETION_TOKENS = 900;
-const MAX_MODEL_ATTEMPTS = 2;
+const DEFAULT_COMPLETION_TOKENS = 700;
 
-type TokenStyle = "max_completion_tokens" | "max_tokens";
-type ResponseFormatMode = "json_object" | "plain_text";
+type TokenStyle = "max_tokens";
+type ResponseFormatMode = "json_object";
 
 function isRetryableError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -80,51 +78,32 @@ function buildCompletionRequest({
 
 async function callChatCompletionWithFallback(prompt: string) {
   const openai = getOpenAIClient();
-  const requestVariants: ReadonlyArray<{ tokenStyle: TokenStyle; responseFormatMode: ResponseFormatMode }> = [
-    { tokenStyle: "max_completion_tokens", responseFormatMode: "json_object" },
-    { tokenStyle: "max_tokens", responseFormatMode: "json_object" },
-    { tokenStyle: "max_completion_tokens", responseFormatMode: "plain_text" },
-    { tokenStyle: "max_tokens", responseFormatMode: "plain_text" },
-  ];
-
   let lastError: unknown;
 
   for (const model of TEXT_MODEL_CANDIDATES) {
-    for (const requestVariant of requestVariants) {
-      for (let attempt = 1; attempt <= MAX_MODEL_ATTEMPTS; attempt += 1) {
-        const maxTokens = attempt === 1 ? DEFAULT_COMPLETION_TOKENS : RETRY_COMPLETION_TOKENS;
+    try {
+      const response = await openai.chat.completions.create(
+        buildCompletionRequest({
+          model,
+          prompt,
+          maxTokens: DEFAULT_COMPLETION_TOKENS,
+          tokenStyle: "max_tokens",
+          responseFormatMode: "json_object",
+        }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+      );
 
-        try {
-          const response = await openai.chat.completions.create(
-            buildCompletionRequest({
-              model,
-              prompt,
-              maxTokens,
-              tokenStyle: requestVariant.tokenStyle,
-              responseFormatMode: requestVariant.responseFormatMode,
-            }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
-          );
+      const content = response.choices[0]?.message?.content;
 
-          const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("OpenAI returned an empty response.");
+      }
 
-          if (!content) {
-            throw new Error("OpenAI returned an empty response.");
-          }
+      return content;
+    } catch (error) {
+      lastError = error;
 
-          return content;
-        } catch (error) {
-          lastError = error;
-
-          if (isCompatibilityError(error)) {
-            break;
-          }
-
-          if (isRetryableError(error) && attempt < MAX_MODEL_ATTEMPTS) {
-            continue;
-          }
-
-          break;
-        }
+      if (!isCompatibilityError(error) && !isRetryableError(error)) {
+        break;
       }
     }
   }

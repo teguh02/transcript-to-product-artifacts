@@ -6,6 +6,7 @@ import { ResultTabs } from "@/components/result-tabs";
 import { TranscriptInput } from "@/components/transcript-input";
 import { WorkspaceStatus } from "@/components/workspace-status";
 import { sampleTranscript } from "@/data/sample-transcript";
+import { MAX_PROMPT_TRANSCRIPT_CHARS } from "@/lib/generation-config";
 import { exportAsDocx, exportAsJson, exportAsPdf, type ExportFormat } from "@/lib/exporters";
 import type { GenerationResult } from "@/types/artifacts";
 
@@ -17,11 +18,12 @@ export default function HomePage() {
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [sourceLabel, setSourceLabel] = useState("Sample transcript");
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTab>("Input");
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
-  const hasValidTranscript = transcript.trim().length >= 20 && !transcribing;
+  const hasValidTranscript = transcript.trim().length >= 20;
+  const normalizedTranscriptLength = transcript.replace(/\s+/g, " ").trim().length;
+  const isTranscriptTrimmed = normalizedTranscriptLength > MAX_PROMPT_TRANSCRIPT_CHARS;
   const previousValidTranscript = useRef(hasValidTranscript);
 
   const workspaceTabEnabled: Record<WorkspaceTab, boolean> = {
@@ -61,35 +63,6 @@ export default function HomePage() {
       await exportAsPdf(result);
     } finally {
       setExportingFormat(null);
-    }
-  }
-
-  async function handleAudioUpload(file: File) {
-    setError(null);
-    setTranscribing(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/transcribe", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to transcribe audio.");
-      }
-
-      setTranscript(data.transcript);
-      setSourceLabel("Audio transcription");
-      setResult(null);
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Unexpected error during audio transcription.");
-    } finally {
-      setTranscribing(false);
     }
   }
 
@@ -147,7 +120,7 @@ export default function HomePage() {
                   setActiveWorkspaceTab("Input");
                   void handleGenerate();
                 }}
-                disabled={loading || transcribing || transcript.trim().length < 20 || exportingFormat !== null}
+                disabled={loading || transcript.trim().length < 20 || exportingFormat !== null}
                 className="rounded-full bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {result ? (loading ? "Regenerating..." : "Regenerate") : loading ? "Generating..." : "Generate"}
@@ -220,15 +193,15 @@ export default function HomePage() {
                   setResult(null);
                 }}
                 disabled={loading}
-                transcribing={transcribing}
                 sourceLabel={sourceLabel}
-                canGenerate={!loading && !transcribing && transcript.trim().length >= 20}
+                canGenerate={!loading && transcript.trim().length >= 20}
+                transcriptCharLimit={MAX_PROMPT_TRANSCRIPT_CHARS}
+                isTranscriptTrimmed={isTranscriptTrimmed}
                 onSample={() => {
                   setTranscript(sampleTranscript);
                   setSourceLabel("Sample transcript");
                   setResult(null);
                 }}
-                onAudioUpload={handleAudioUpload}
                 onClear={() => {
                   setTranscript("");
                   setSourceLabel("Empty workspace");
@@ -243,7 +216,6 @@ export default function HomePage() {
             {activeWorkspaceTab === "Workspace Status" ? (
               <WorkspaceStatus
                 loading={loading}
-                transcribing={transcribing}
                 sourceLabel={sourceLabel}
                 result={result}
                 hasValidTranscript={hasValidTranscript}
@@ -316,7 +288,7 @@ export default function HomePage() {
                         <p className="section-title">Result Workspace</p>
                         <h2 className="mt-2 text-2xl font-semibold text-white">No artifacts generated yet</h2>
                         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                          Start from a sample, paste a transcript, or transcribe audio. After generation, this workspace will hold your PRD, user stories, functional requirements, and low-fidelity wireframes.
+                          Start from a sample, paste a transcript, or upload a .txt file. After generation, this workspace will hold your PRD, user stories, functional requirements, and low-fidelity wireframes.
                         </p>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">

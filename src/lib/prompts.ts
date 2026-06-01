@@ -9,35 +9,36 @@ const JSON_ONLY_RULE = [
 export function buildOneShotArtifactsPrompt(transcript: string) {
   return `You are a senior product manager and product designer. Read the meeting transcript and generate a complete product artifact package in English. ${JSON_ONLY_RULE}
 
-This is a production request that must complete quickly and reliably.
+This is a quick prototype request that must complete fast and reliably.
 Keep the output concise, grounded, and internally consistent.
-Prefer fewer, higher-quality items over long lists.
+Prefer short, high-quality items over long lists.
 Keep paragraph fields to 1 short paragraph each.
+Use compact phrasing and avoid repeating the same idea.
 Do not exceed these limits:
-- actors: 4
-- problems: 4
-- goals: 4
-- featureIdeas: 5
-- constraints: 4
-- nonFunctionalSignals: 4
-- successSignals: 4
+- actors: 3
+- problems: 3
+- goals: 3
+- featureIdeas: 3
+- constraints: 3
+- nonFunctionalSignals: 3
+- successSignals: 3
 - assumptions: 3
-- openQuestions: 3
-- userPersonas: 3
-- userJourney steps: 5
-- features: 5
-- prd functionalRequirements summary items: 5
-- nonFunctionalRequirements: 4
-- successMetrics: 4
-- userStories: 5
-- functionalRequirements: 6
-- sitemap nodes: 6
-- screenList screens: 5
-- userFlow steps: 5
-- wireframes: 3
-- wireframe sections per screen: 3
-- wireframe components per section: 3
-- wireframe notes per screen: 3
+- openQuestions: 2
+- userPersonas: 2
+- userJourney steps: 3
+- features: 3
+- prd functionalRequirements summary items: 3
+- nonFunctionalRequirements: 3
+- successMetrics: 3
+- userStories: 3
+- functionalRequirements: 4
+- sitemap nodes: 4
+- screenList screens: 3
+- userFlow steps: 4
+- wireframes: 2
+- wireframe sections per screen: 2
+- wireframe components per section: 2
+- wireframe notes per screen: 2
 Every array field that represents text items must contain plain strings only unless the schema below explicitly requires objects.
 Do not include a validation object in the response.
 

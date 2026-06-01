@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_ACCEPTED_TRANSCRIPT_CHARS } from "@/lib/generation-config";
 
 function stringifyPrimitive(value: unknown): string {
   if (typeof value === "string") {
@@ -195,7 +196,10 @@ export const validationSchema = z.object({
 });
 
 export const generationRequestSchema = z.object({
-  transcript: z.string().min(20, "Transcript must be at least 20 characters long."),
+  transcript: z
+    .string()
+    .min(20, "Transcript must be at least 20 characters long.")
+    .max(MAX_ACCEPTED_TRANSCRIPT_CHARS, `Transcript must be at most ${MAX_ACCEPTED_TRANSCRIPT_CHARS} characters long.`),
 });
 
 export const generationResultSchema = z.object({

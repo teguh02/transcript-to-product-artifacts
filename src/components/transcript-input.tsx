@@ -3,13 +3,13 @@
 type TranscriptInputProps = {
   value: string;
   disabled: boolean;
-  transcribing: boolean;
   sourceLabel: string;
   canGenerate: boolean;
+  transcriptCharLimit: number;
+  isTranscriptTrimmed: boolean;
   onChange: (value: string) => void;
   onTextImport: (value: string) => void;
   onSample: () => void;
-  onAudioUpload: (file: File) => Promise<void>;
   onClear: () => void;
   onGenerate: () => void;
 };
@@ -17,13 +17,13 @@ type TranscriptInputProps = {
 export function TranscriptInput({
   value,
   disabled,
-  transcribing,
   sourceLabel,
   canGenerate,
+  transcriptCharLimit,
+  isTranscriptTrimmed,
   onChange,
   onTextImport,
   onSample,
-  onAudioUpload,
   onClear,
   onGenerate,
 }: TranscriptInputProps) {
@@ -39,17 +39,6 @@ export function TranscriptInput({
     event.target.value = "";
   }
 
-  async function handleAudioUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    await onAudioUpload(file);
-    event.target.value = "";
-  }
-
   return (
     <section className="surface p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
@@ -57,7 +46,7 @@ export function TranscriptInput({
           <p className="section-title">Input</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Transcript Workspace</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
-            Work from pasted notes, text files, or audio transcription, then review the final transcript before generating product artifacts.
+            Work from pasted notes, text files, or a sample transcript, then review the final transcript before generating product artifacts.
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
@@ -78,18 +67,6 @@ export function TranscriptInput({
         <label className="inline-flex cursor-pointer items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 transition hover:border-white/20 hover:bg-white/10">
           <span>Upload .txt</span>
           <input type="file" accept=".txt,text/plain" className="hidden" onChange={handleFileUpload} disabled={disabled} />
-        </label>
-        <label className="inline-flex cursor-pointer items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 transition hover:border-white/20 hover:bg-white/10">
-          <span>{transcribing ? "Transcribing Audio..." : "Upload Audio"}</span>
-          <input
-            type="file"
-            accept=".mp3,.m4a,.wav,.webm,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/webm"
-            className="hidden"
-            onChange={(event) => {
-              void handleAudioUpload(event);
-            }}
-            disabled={disabled || transcribing}
-          />
         </label>
         <button
           type="button"
@@ -120,13 +97,13 @@ export function TranscriptInput({
           disabled={!canGenerate}
           className="rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {disabled ? "Generating..." : transcribing ? "Transcribing..." : "Generate Artifacts"}
+          {disabled ? "Generating..." : "Generate Artifacts"}
         </button>
       </div>
 
-      {transcribing ? (
+      {isTranscriptTrimmed ? (
         <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-          Transcribing audio with OpenAI speech-to-text. The transcript will be inserted into the editor when ready.
+          Quick generation mode: only the first {transcriptCharLimit.toLocaleString()} normalized characters will be sent to AI.
         </div>
       ) : null}
     </section>
