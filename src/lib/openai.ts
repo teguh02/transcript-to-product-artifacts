@@ -102,7 +102,7 @@ async function callChatCompletionWithFallback(prompt: string) {
               maxTokens,
               tokenStyle: requestVariant.tokenStyle,
               responseFormatMode: requestVariant.responseFormatMode,
-            }) as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+            }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
           );
 
           const content = response.choices[0]?.message?.content;
